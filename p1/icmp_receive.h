@@ -3,6 +3,6 @@
 
 #include <stdlib.h>
 
-ssize_t recv_packet (int sockfd, u_int8_t* buffer);
+ssize_t recv_packet (int sockfd, u_int8_t* buffer, char* sender_ip_str, u_int8_t sender_ip_len);
 
 #endif

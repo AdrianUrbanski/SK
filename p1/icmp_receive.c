@@ -7,7 +7,7 @@
 #include <errno.h>
 #include <time.h>
 
-ssize_t recv_packet (int sockfd, u_int8_t* buffer) {
+ssize_t recv_packet (int sockfd, u_int8_t* buffer, char* sender_ip_str, u_int8_t sender_ip_len) {
 	struct sockaddr_in 	sender;	
 	socklen_t 		sender_len = sizeof(sender);
 
@@ -17,10 +17,7 @@ ssize_t recv_packet (int sockfd, u_int8_t* buffer) {
 		return EXIT_FAILURE;
 	}
 
-	char sender_ip_str[20]; 
-	inet_ntop(AF_INET, &(sender.sin_addr), sender_ip_str, sizeof(sender_ip_str));
-
-	printf ("Received IP packet with ICMP content from: %s\n", sender_ip_str);
+	inet_ntop(AF_INET, &(sender.sin_addr), sender_ip_str, sender_ip_len);
 
 	return packet_len;
 }
