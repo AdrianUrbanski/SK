@@ -42,12 +42,8 @@ ssize_t send_packet (int sockfd, struct icmp header, char* ip_addr) {
 		);
 	if (bytes_sent < 0) {
 		fprintf(stderr, "sendto error: %s\n", strerror(errno));
-		return EXIT_FAILURE
+		return EXIT_FAILURE;
 	}
 
 	return bytes_sent;
-}
-
-int main(){
-	return 0;
 }
