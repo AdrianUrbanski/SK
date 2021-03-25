@@ -24,7 +24,9 @@ struct icmp create_header (int seq) {
 }
 
 
-ssize_t send_packet (int sockfd, struct icmp header, char* ip_addr) {
+ssize_t send_packet (int sockfd, int seq, char* ip_addr) {
+
+	struct icmp header = create_header(seq);
 
 	struct sockaddr_in	recipient;
 	socklen_t		recipient_len = sizeof(recipient);
