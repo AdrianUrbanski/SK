@@ -10,21 +10,21 @@
 
 #include "icmp_checksum.h"
 
-struct icmp create_header (int seq) {
+struct icmp create_header (u_int16_t seq) {
 	struct icmp header;
 	header.icmp_type = ICMP_ECHO;
 	header.icmp_code = 0;
-	header.icmp_hun.ih_idseq.icd_id = getpid();
-	header.icmp_hun.ih_idseq.icd_seq = seq;
+	header.icmp_hun.ih_idseq.icd_id = htons(getpid());
+	header.icmp_hun.ih_idseq.icd_seq = htons(seq);
 	header.icmp_cksum = 0;
-	header.icmp_cksum = compute_icmp_checksum(
-			(u_int16_t*) &header, sizeof(header));
+	// dlaczego tu nie htons?
+	header.icmp_cksum = compute_icmp_checksum((u_int16_t*) &header, sizeof(header));
 	
 	return header;
 }
 
 
-ssize_t send_packet (int sockfd, int seq, char* ip_addr) {
+ssize_t send_packet (int sockfd, u_int16_t seq, char* ip_addr) {
 
 	struct icmp header = create_header(seq);
 
