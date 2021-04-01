@@ -9,6 +9,7 @@
 #include <stdbool.h>
 #include <unistd.h>
 #include <sys/time.h>
+#include <regex.h>
 
 #include "icmp_receive.h"
 #include "icmp_send.h"
@@ -27,10 +28,32 @@ int send_packets(int sockdf, int ttl, char* target_ip, Packet* packets);
 double usec_to_msec(suseconds_t usec);
 void process_packet(int ttl, int id, int usec_elapsed, char* sender_ip, u_int8_t* buffer, Packet* packets);
 
-int main(){
-	char target_ip[20] = "8.8.8.8";
-	char sender_ip[20] = "0.0.0.0";
+int main(int argc, char* argv[]){
+	if( argc != 2 ){
+		fprintf(stderr, "traceroute expects exactly one argument - host ip");
+		return EXIT_FAILURE;
+	}
+	regex_t ip_regex;
+	static const char REGEX[] = "^[0-9]{1,3}[.][0-9]{1,3}[.][0-9]{1,3}[.][0-9]{1,3}[ ]*$";
+	if(regcomp(&ip_regex, REGEX, REG_EXTENDED)){
+		fprintf(stderr, "regex compilation error: %s\n", strerror(errno)); 
+		return EXIT_FAILURE;
+	}
+	int match_result = regexec(&ip_regex, argv[1], 0, NULL, 0);
+	if (match_result == REG_NOMATCH){
+		fprintf(stderr, "argument must be host ip");
+		return EXIT_FAILURE;
+	}
+	else if (match_result != 0){
+		fprintf(stderr, "regex match error: %s\n", strerror(errno)); 
+		return EXIT_FAILURE;
+	}
+
+	char target_ip[20];
+	strcpy(target_ip, argv[1]);
+
 	Packet packets[3];
+	strcpy(packets[0].sender_ip, "0.0.0.0");
 	
 	int sockfd = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
 	if (sockfd < 0) {
@@ -42,14 +65,12 @@ int main(){
 
 
 	int ttl = 0;
-	while ( strcmp(target_ip, sender_ip) && ttl < 30){
+	while ( strcmp(target_ip, packets[0].sender_ip) && ttl < 30){
 		++ttl;
 		if (setsockopt (sockfd, IPPROTO_IP, IP_TTL, &ttl, sizeof(int)) < 0) {
 			fprintf(stderr, "setsockopt error: %s\n", strerror(errno)); 
 			return EXIT_FAILURE;
 		}
-
-		printf("TTL: %d\n", ttl);
 
 		if (send_packets(sockfd, ttl, target_ip, packets) == EXIT_FAILURE)
 			return EXIT_FAILURE;
@@ -57,11 +78,31 @@ int main(){
 		if (recv_packets(sockfd, id, ttl, packets) == EXIT_FAILURE)
 			return EXIT_FAILURE;
 
-		for (int i=0; i<3; i++)
-			if(packets[i].received == true)
-				printf("IP: %s, time: %lfms\n",
-						packets[i].sender_ip,
-						usec_to_msec(packets[i].elapsed));
+		printf("%d. ", ttl);
+
+		bool received_all = true;
+		bool received_any = false;
+		suseconds_t time = 0;
+		for (int i=0; i<3; i++){
+			if(packets[i].received){
+				received_any = true;
+				bool already_received = false;
+				for (int j=0; j<i; j++)
+					if (!strcmp(packets[j].sender_ip, packets[i].sender_ip))
+						already_received = true;
+				if (!already_received)
+					printf("%s ", packets[i].sender_ip);
+				time += packets[i].elapsed;
+			}
+			else
+				received_all = false;
+		}
+		if (!received_any)
+			printf("*\n");
+		else if (received_all)
+			printf("%.2lfms\n", usec_to_msec(time/3));
+		else
+			printf("???\n");
 	}
 
 	return EXIT_SUCCESS;
@@ -118,6 +159,13 @@ int recv_packets(int sockfd, int id, int ttl, Packet* packets){
 		tv.tv_sec = 0;
 		tv.tv_usec = 1000000 - usec_elapsed;
 
+		bool received_all = true;
+		for (int i=0; i<3; i++)
+			if (!packets[i].received)
+				received_all = false;
+		if (received_all)
+			return EXIT_SUCCESS;
+
 	}
 	if (ready < 0) {
 		fprintf(stderr, "select error: %s\n", strerror(errno));
@@ -131,7 +179,7 @@ void process_packet(int ttl, int id, int usec_elapsed, char* sender_ip, u_int8_t
 	ssize_t		ip_header_len = 4 * ip_header->ip_hl;
 	struct icmp*	icmp_header = (struct icmp*) (buffer + ip_header_len);
 
-	if (icmp_header->icmp_type == ICMP_TIME_EXCEEDED){
+	if (icmp_header->icmp_type == ICMP_TIME_EXCEEDED) {
 		ip_header_len += 8;
 		ip_header = (struct ip*) buffer;
 		ip_header_len += 4 * ip_header->ip_hl;
