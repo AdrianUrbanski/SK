@@ -1,11 +1,9 @@
 #include <netinet/ip.h>
 #include <arpa/inet.h>
-#include <sys/select.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
-#include <time.h>
 
 ssize_t recv_packet (int sockfd, u_int8_t* buffer, char* sender_ip_str, u_int8_t sender_ip_len) {
 	struct sockaddr_in 	sender;	
