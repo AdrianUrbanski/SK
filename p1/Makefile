@@ -15,4 +15,8 @@ traceroute:
 
 clean:
 	@echo "Cleaning up..."
+	rm -rvf *.o
+
+distclean:
+	@echo "Cleaning up..."
 	rm -rvf traceroute *.o
